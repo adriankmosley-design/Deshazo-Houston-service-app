@@ -5,6 +5,7 @@ import {
   type Category, type Job, type JobFile,
 } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
+import OutlookEmails from '../components/OutlookEmails'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
 
@@ -45,12 +46,12 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
     loadFiles()
   }, [id, loadFiles])
 
-  async function upload(list: FileList | File[]) {
+  async function upload(list: FileList | File[], forced?: Category) {
     const arr = Array.from(list)
     if (!arr.length) return
     setUploads(arr.map((f) => ({ name: f.name, status: 'uploading' })))
     await Promise.all(arr.map(async (file, i) => {
-      const category = target === 'Auto' ? guessCategory(file) : target
+      const category = forced ?? (target === 'Auto' ? guessCategory(file) : target)
       const path = `${id}/${crypto.randomUUID()}-${safeFileName(file.name)}`
       const mark = (u: Partial<Upload>) =>
         setUploads((prev) => prev.map((p, j) => (j === i ? { ...p, ...u } : p)))
@@ -176,6 +177,12 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
           )}
         </div>
       </section>
+
+      <OutlookEmails
+        jobNumber={job.job_number}
+        savedNames={files.map((f) => f.file_name)}
+        onSave={upload}
+      />
 
       {error && <p className="error">{error}</p>}
 

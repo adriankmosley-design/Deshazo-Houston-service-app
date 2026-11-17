@@ -22,6 +22,7 @@ export const CATEGORIES = [
   'Parts pricing',
   'Photos',
   'Letters',
+  'Emails',
   'Other',
 ] as const
 export type Category = (typeof CATEGORIES)[number]
@@ -64,6 +65,7 @@ export function guessCategory(file: File): Category {
   if (/quote|estimate|proposal/.test(name)) return 'Quotes'
   if (/price|pricing|parts|bom/.test(name)) return 'Parts pricing'
   if (/letter|ltr/.test(name)) return 'Letters'
+  if (/\.(eml|msg)$/.test(name)) return 'Emails'
   return 'Other'
 }
 
