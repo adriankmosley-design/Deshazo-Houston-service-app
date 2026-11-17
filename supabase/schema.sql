@@ -38,8 +38,8 @@ create table if not exists public.job_files (
   id           uuid primary key default gen_random_uuid(),
   job_id       uuid not null references public.jobs(id) on delete cascade,
   category     text not null
-               check (category in ('Inspection reports', 'Quotes', 'Parts pricing',
-                                   'Photos', 'Letters', 'Other')),
+               check (category in ('Service reports', 'Inspection reports', 'Quotes',
+                                   'Parts pricing', 'Photos', 'Letters', 'Other')),
   file_name    text not null,
   storage_path text not null unique,
   size_bytes   bigint,
@@ -77,3 +77,9 @@ create policy "staff upload job files" on storage.objects
   for insert to authenticated with check (bucket_id = 'job-files');
 create policy "staff delete job files" on storage.objects
   for delete to authenticated using (bucket_id = 'job-files');
+
+-- Added later: the "Service reports" folder. Safe to run on an existing database.
+alter table public.job_files drop constraint if exists job_files_category_check;
+alter table public.job_files add constraint job_files_category_check
+  check (category in ('Service reports', 'Inspection reports', 'Quotes',
+                      'Parts pricing', 'Photos', 'Letters', 'Other'));

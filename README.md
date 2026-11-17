@@ -8,6 +8,7 @@ It works on a PC and on a phone (you can snap photos straight into a job).
 
 - **Jobs list**: search by job number, customer, site, serial number or file name, and filter by status (Open, Quoted, In progress, Closed).
 - **Job page**: job, contact and crane details, plus every file sorted into folders. Drag files in from your PC, or tap **Take photo** on your phone. Click a file to open it, download it, move it to another folder, or delete it.
+- **Upload files to jobs**: on the Jobs page, pick many files at once. Each one goes to the job whose number is in its file name (for example `Service Report 0292239.pdf` goes to job 0292239).
 - **Sign in**: only people you add can get in. All files are private.
 
 ## One-time setup (about 20 minutes, no coding)

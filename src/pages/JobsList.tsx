@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { STATUSES, formatDate, supabase, type Job } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
+import BulkUpload from '../components/BulkUpload'
 
 type Row = Job & { job_files: { count: number }[] }
 
@@ -11,6 +12,7 @@ export default function JobsList() {
   const [status, setStatus] = useState<string>('All')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -49,13 +51,16 @@ export default function JobsList() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [query, status])
+  }, [query, status, reload])
 
   return (
     <div className="stack">
       <div className="row between wrap">
         <h1>Jobs</h1>
-        <Link to="/jobs/new" className="btn primary">+ New job</Link>
+        <div className="row gap wrap">
+          <BulkUpload onDone={() => setReload((n) => n + 1)} />
+          <Link to="/jobs/new" className="btn primary">+ New job</Link>
+        </div>
       </div>
 
       <div className="row wrap gap">

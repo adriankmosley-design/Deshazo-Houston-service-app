@@ -16,6 +16,7 @@ export const STATUSES = ['Open', 'Quoted', 'In progress', 'Closed'] as const
 export type Status = (typeof STATUSES)[number]
 
 export const CATEGORIES = [
+  'Service reports',
   'Inspection reports',
   'Quotes',
   'Parts pricing',
@@ -59,6 +60,7 @@ export function guessCategory(file: File): Category {
   const name = file.name.toLowerCase()
   if (file.type.startsWith('image/')) return 'Photos'
   if (/inspect|osha|annual|frequent|periodic/.test(name)) return 'Inspection reports'
+  if (/service[\s_-]*report|work[\s_-]*order|repair[\s_-]*ticket/.test(name)) return 'Service reports'
   if (/quote|estimate|proposal/.test(name)) return 'Quotes'
   if (/price|pricing|parts|bom/.test(name)) return 'Parts pricing'
   if (/letter|ltr/.test(name)) return 'Letters'
@@ -83,4 +85,13 @@ export function formatDate(iso: string): string {
 /** Storage keys must be plain ASCII; keep the readable part of the name. */
 export function safeFileName(name: string): string {
   return name.normalize('NFKD').replace(/[^\w.-]+/g, '_').replace(/_+/g, '_').slice(-120)
+}
+
+/** Find the job a file belongs to from a job number in its name, e.g. "Service Report 0292239.pdf". */
+export function matchJob<T extends { job_number: string }>(fileName: string, jobs: T[]): T | undefined {
+  const runs = (fileName.match(/\d{4,}/g) ?? []).map((d) => d.replace(/^0+/, ''))
+  return jobs.find((j) => {
+    const num = j.job_number.replace(/\D/g, '').replace(/^0+/, '')
+    return num.length >= 4 && runs.includes(num)
+  })
 }
