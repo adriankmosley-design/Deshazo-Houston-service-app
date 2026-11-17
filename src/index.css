@@ -157,6 +157,8 @@ label.inline select { width: auto; }
 .photo figcaption { padding: 8px; display: grid; gap: 6px; }
 .photo .file-actions { flex-wrap: wrap; justify-content: flex-start; width: 100%; }
 
+.bulk-results { width: 100%; }
+
 .danger-zone { border-top: 1px solid var(--border); padding-top: 24px; margin-top: 16px; }
 
 @media (max-width: 640px) {
