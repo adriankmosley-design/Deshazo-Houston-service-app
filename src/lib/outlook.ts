@@ -114,3 +114,33 @@ export async function emailFile(e: Email): Promise<File> {
   const name = `Email ${date} ${e.subject}`.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) + '.eml'
   return new File([await res.blob()], name, { type: 'message/rfc822' })
 }
+
+function toEmail(m: any): Email {
+  return {
+    id: m.id,
+    subject: m.subject || '(no subject)',
+    from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || '',
+    received: m.receivedDateTime,
+    preview: m.bodyPreview ?? '',
+    hasAttachments: m.hasAttachments,
+    webLink: m.webLink,
+  }
+}
+
+/** Every email with attachments received between two dates (all folders, newest first). */
+export async function emailsWithAttachments(from: Date, to: Date, max = 500): Promise<Email[]> {
+  const q = new URLSearchParams({
+    $filter: `receivedDateTime ge ${from.toISOString()} and receivedDateTime lt ${to.toISOString()} and hasAttachments eq true`,
+    $orderby: 'receivedDateTime desc',
+    $top: '100',
+    $select: 'id,subject,from,receivedDateTime,bodyPreview,hasAttachments,webLink',
+  })
+  const out: Email[] = []
+  let next: string | null = `/me/messages?${q}`
+  while (next && out.length < max) {
+    const data: any = await (await graph(next)).json()
+    out.push(...(data.value as any[]).map(toEmail))
+    next = data['@odata.nextLink'] ? String(data['@odata.nextLink']).replace(GRAPH, '') : null
+  }
+  return out.slice(0, max)
+}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { STATUSES, formatDate, supabase, type Job } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
 import BulkUpload from '../components/BulkUpload'
+import OutlookImport from '../components/OutlookImport'
 
 type Row = Job & { job_files: { count: number }[] }
 
@@ -63,6 +64,7 @@ export default function JobsList() {
       </div>
 
       <BulkUpload onDone={() => setReload((n) => n + 1)} />
+      <OutlookImport onDone={() => setReload((n) => n + 1)} />
 
       <div className="row wrap gap">
         <input

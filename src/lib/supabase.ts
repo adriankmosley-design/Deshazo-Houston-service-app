@@ -97,3 +97,41 @@ export function matchJob<T extends { job_number: string }>(fileName: string, job
     return num.length >= 4 && runs.includes(num)
   })
 }
+
+/**
+ * Job numbers mentioned in a piece of text, most likely first. Deshazo vendor POs are
+ * written PO-job (e.g. "291722-R291012"), so the second number of such a pair comes first.
+ */
+export function jobNumbersIn(text: string): string[] {
+  const out: string[] = []
+  for (const m of text.matchAll(/\b(\d{6})-R?(\d{6,7})\b/gi)) out.push(m[2], m[1])
+  for (const m of text.matchAll(/\d{4,}/g)) out.push(m[0])
+  return [...new Set(out.map((d) => d.replace(/^0+/, '')))]
+}
+
+/** The job a piece of text is about, checking job numbers in the order jobNumbersIn gives. */
+export function matchJobText<T extends { job_number: string }>(text: string, jobs: T[]): T | undefined {
+  const byNum = new Map(jobs.map((j) => [j.job_number.replace(/\D/g, '').replace(/^0+/, ''), j]))
+  for (const n of jobNumbersIn(text)) {
+    const hit = n.length >= 4 ? byNum.get(n) : undefined
+    if (hit) return hit
+  }
+  return undefined
+}
+
+/** Upload one file into a job's folder and record it. Returns an error message, or null when it worked. */
+export async function uploadToJob(jobId: string, file: File, category?: Category): Promise<string | null> {
+  const path = `${jobId}/${crypto.randomUUID()}-${safeFileName(file.name)}`
+  const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined })
+  if (up.error) return up.error.message
+  const { data: user } = await supabase.auth.getUser()
+  const row = await supabase.from('job_files').insert({
+    job_id: jobId, category: category ?? guessCategory(file), file_name: file.name, storage_path: path,
+    size_bytes: file.size, mime_type: file.type || null, uploaded_by: user.user?.email ?? null,
+  })
+  if (row.error) {
+    await supabase.storage.from(BUCKET).remove([path])
+    return row.error.message
+  }
+  return null
+}
