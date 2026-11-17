@@ -10,6 +10,7 @@ It works on a PC and on a phone (you can snap photos straight into a job).
 - **Job page**: job, contact and crane details, plus every file sorted into folders. Drag files in from your PC, or tap **Take photo** on your phone. Click a file to open it, download it, move it to another folder, or delete it.
 - **Upload files box** on the Jobs page: drag many files in at once (or click **Choose files**). Each one goes to the job whose number is in its file name (for example `Service Report 0292239.pdf` goes to job 0292239).
 - **Outlook emails** (optional): on a job page, **Connect Outlook** finds every email that mentions the job number. **Save email** keeps the email (opens in Outlook) in the Emails folder, plus its attachments in the right folders. Needs a one-time Microsoft app registration (below).
+- **Import from Outlook** on the Jobs page: pick a date range (last 7 days by default) and click **Find emails**. Every email with attachments is matched to a job by the job number in its subject, attachment names or text (vendor POs like `291722-R291012` go to job 291012). Check the list, pick a job for any that didn't match, then click **Import**. Each email and its attachments are filed into that job; files already in the job are skipped. Signature logos are ignored.
 - **Sign in**: only people you add can get in. All files are private.
 
 ## One-time setup (about 20 minutes, no coding)
