@@ -58,10 +58,11 @@ export default function JobsList() {
       <div className="row between wrap">
         <h1>Jobs</h1>
         <div className="row gap wrap">
-          <BulkUpload onDone={() => setReload((n) => n + 1)} />
           <Link to="/jobs/new" className="btn primary">+ New job</Link>
         </div>
       </div>
+
+      <BulkUpload onDone={() => setReload((n) => n + 1)} />
 
       <div className="row wrap gap">
         <input

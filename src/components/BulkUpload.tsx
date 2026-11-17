@@ -11,6 +11,7 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<Result[]>([])
+  const [dragging, setDragging] = useState(false)
 
   async function run(files: File[]) {
     if (!files.length) return
@@ -57,15 +58,32 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
   const failed = results.filter((r) => !r.ok)
 
   return (
-    <>
-      <button className="btn" disabled={busy} onClick={() => inputRef.current?.click()}
-        title="Pick many files; each goes to the job whose number is in its file name">
-        {busy ? `Uploading… ${results.length}` : 'Upload files to jobs'}
-      </button>
+    <div
+      className={`card dropzone stack tight ${dragging ? 'over' : ''}`}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragging(false)
+        if (!busy) run(Array.from(e.dataTransfer.files))
+      }}
+    >
+      <div className="row between wrap gap">
+        <div>
+          <strong>Upload files</strong>
+          <p className="muted small">
+            Drag files here. Each one goes to the job whose number is in its file name,
+            for example "Service Report 0292239.pdf".
+          </p>
+        </div>
+        <button className="btn" disabled={busy} onClick={() => inputRef.current?.click()}>
+          {busy ? `Uploading… ${results.length}` : 'Choose files'}
+        </button>
+      </div>
       <input ref={inputRef} type="file" multiple hidden
         onChange={(e) => { run(Array.from(e.target.files ?? [])); e.target.value = '' }} />
       {results.length > 0 && !busy && (
-        <div className="card stack tight bulk-results" role="status">
+        <div className="stack tight bulk-results" role="status">
           <div className="row between">
             <strong>{added} file{added === 1 ? '' : 's'} added to jobs</strong>
             <button className="btn small ghost" onClick={() => setResults([])}>Close</button>
@@ -79,6 +97,6 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
           )}
         </div>
       )}
-    </>
+    </div>
   )
 }
