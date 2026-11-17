@@ -119,8 +119,17 @@ export function matchJobText<T extends { job_number: string }>(text: string, job
   return undefined
 }
 
-/** Upload one file into a job's folder and record it. Returns an error message, or null when it worked. */
+/** Message uploadToJob returns when the job already has a file with that name (nothing is added). */
+export const DUPLICATE = 'Already in this job, skipped'
+
+/**
+ * Upload one file into a job's folder and record it. Returns an error message, DUPLICATE when the
+ * job already holds a file of that name, or null when it worked. A job never gets the same file name twice.
+ */
 export async function uploadToJob(jobId: string, file: File, category?: Category): Promise<string | null> {
+  const { data: same } = await supabase.from('job_files').select('id')
+    .eq('job_id', jobId).ilike('file_name', file.name.replace(/[\\%_]/g, '\\$&')).limit(1)
+  if (same?.length) return DUPLICATE
   const path = `${jobId}/${crypto.randomUUID()}-${safeFileName(file.name)}`
   const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined })
   if (up.error) return up.error.message
@@ -131,7 +140,7 @@ export async function uploadToJob(jobId: string, file: File, category?: Category
   })
   if (row.error) {
     await supabase.storage.from(BUCKET).remove([path])
-    return row.error.message
+    return row.error.code === '23505' ? DUPLICATE : row.error.message
   }
   return null
 }

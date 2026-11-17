@@ -12,6 +12,7 @@ It works on a PC and on a phone (you can snap photos straight into a job).
 - **Outlook emails** (optional): on a job page, **Connect Outlook** finds every email that mentions the job number. **Save email** keeps the email (opens in Outlook) in the Emails folder, plus its attachments in the right folders. Needs a one-time Microsoft app registration (below).
 - **Import from Outlook** on the Jobs page: pick a date range (last 7 days by default) and click **Find emails**. Every email with attachments is matched to a job by the job number in its subject, attachment names or text (vendor POs like `291722-R291012` go to job 291012). Check the list, pick a job for any that didn't match, then click **Import**. Each email and its attachments are filed into that job; files already in the job are skipped. Signature logos are ignored.
 - **Beloved Robot sync**: on the Jobs page, **Sync now** opens the Beloved Robot work orders list; click the **Send to Job Files** bookmark there (one-time setup under **Setup**) and new work orders, status changes and service report PDFs come in. It only reads from Beloved Robot. The box turns red each day until you've synced.
+- **No duplicates**: a job never holds two files with the same name. Uploading, syncing or importing a file that's already there is skipped.
 - **Sign in**: only people you add can get in. All files are private.
 
 ## One-time setup (about 20 minutes, no coding)

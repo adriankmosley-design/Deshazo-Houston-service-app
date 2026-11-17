@@ -89,3 +89,7 @@ alter table public.job_files drop constraint if exists job_files_category_check;
 alter table public.job_files add constraint job_files_category_check
   check (category in ('Service reports', 'Inspection reports', 'Quotes',
                       'Parts pricing', 'Photos', 'Letters', 'Emails', 'Other'));
+
+-- A job never holds two files with the same name. Safe to run again.
+create unique index if not exists job_files_job_name_unique
+  on public.job_files (job_id, lower(file_name));

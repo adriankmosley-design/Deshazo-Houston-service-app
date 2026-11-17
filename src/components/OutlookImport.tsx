@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AccountInfo } from '@azure/msal-browser'
-import { formatDate, matchJobText, supabase, uploadToJob } from '../lib/supabase'
+import { DUPLICATE, formatDate, matchJobText, supabase, uploadToJob } from '../lib/supabase'
 import {
   attachmentFile, connectOutlook, emailFile, emailsWithAttachments, listAttachments,
   outlookAccount, outlookConfigured, type Attachment, type Email,
@@ -97,7 +97,8 @@ export default function OutlookImport({ onDone }: { onDone: () => void }) {
         for (const { file, email } of files) {
           if (have.has(`${r.jobId}/${file.name}`)) { skipped++; continue }
           const err = await uploadToJob(r.jobId, file, email ? 'Emails' : undefined)
-          if (err) failed.push(`${file.name}: ${err}`)
+          if (err === DUPLICATE) skipped++
+          else if (err) failed.push(`${file.name}: ${err}`)
           else { added++; have.add(`${r.jobId}/${file.name}`) }
         }
       } catch (e) {
