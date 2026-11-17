@@ -9,6 +9,7 @@ It works on a PC and on a phone (you can snap photos straight into a job).
 - **Jobs list**: search by job number, customer, site, serial number or file name, and filter by status (Open, Quoted, In progress, Closed).
 - **Job page**: job, contact and crane details, plus every file sorted into folders. Drag files in from your PC, or tap **Take photo** on your phone. Click a file to open it, download it, move it to another folder, or delete it.
 - **Upload files box** on the Jobs page: drag many files in at once (or click **Choose files**). Each one goes to the job whose number is in its file name (for example `Service Report 0292239.pdf` goes to job 0292239).
+- **Outlook emails** (optional): on a job page, **Connect Outlook** finds every email that mentions the job number. **Save email** keeps the email (opens in Outlook) in the Emails folder, plus its attachments in the right folders. Needs a one-time Microsoft app registration (below).
 - **Sign in**: only people you add can get in. All files are private.
 
 ## One-time setup (about 20 minutes, no coding)
@@ -33,6 +34,14 @@ You need two free accounts: **Supabase** (holds the job list and the files) and 
 4. Click **Deploy**. In a minute you get a web address like `your-app.vercel.app`. Open it, sign in, and create your first job.
 
 On your phone, open that address and use your browser's **Add to Home Screen** to get an app icon.
+
+### 3. Optional: connect Outlook
+
+1. Go to <https://entra.microsoft.com> → **App registrations** → **New registration**. Name it `Job Files`, choose **Accounts in this organizational directory only**, and under Redirect URI pick **Single-page application (SPA)** with `https://<your site>/redirect.html`. Click **Register**.
+2. Copy the **Application (client) ID**. Under **API permissions**, check that **Microsoft Graph → Mail.Read (Delegated)** is listed (add it if not).
+3. In Vercel, add the environment variable `VITE_MS_CLIENT_ID` = that ID, then redeploy.
+
+Each person then clicks **Connect Outlook** on any job and signs in with their work account. The app only reads mail; it never sends, moves or deletes anything.
 
 ### Free plan limits
 
