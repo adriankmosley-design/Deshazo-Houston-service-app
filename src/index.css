@@ -176,3 +176,6 @@ label.inline select { width: auto; }
 .email-preview { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .email-atts { gap: 4px; }
 .email-atts .grow { flex: 1 1 200px; min-width: 0; }
+
+.sync-due { border-color: var(--accent); background: var(--accent-soft); }
+.bookmarklet { cursor: grab; border-style: dashed; }

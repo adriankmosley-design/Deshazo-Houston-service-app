@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { STATUSES, formatDate, supabase, type Job } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
 import BulkUpload from '../components/BulkUpload'
 import OutlookImport from '../components/OutlookImport'
+import DeshazoSync from '../components/DeshazoSync'
 
 type Row = Job & { job_files: { count: number }[] }
 
@@ -14,6 +15,7 @@ export default function JobsList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  const refresh = useCallback(() => setReload((n) => n + 1), [])
 
   useEffect(() => {
     let cancelled = false
@@ -63,6 +65,7 @@ export default function JobsList() {
         </div>
       </div>
 
+      <DeshazoSync onDone={refresh} />
       <BulkUpload onDone={() => setReload((n) => n + 1)} />
       <OutlookImport onDone={() => setReload((n) => n + 1)} />
 
