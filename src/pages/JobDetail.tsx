@@ -6,6 +6,7 @@ import {
 } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
 import OutlookEmails from '../components/OutlookEmails'
+import CraneMasterList from '../components/CraneMasterList'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
 
@@ -147,6 +148,8 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
           <Link to={`/jobs/${id}/edit`} className="btn">Edit job</Link>
         </div>
       </div>
+
+      <CraneMasterList job={job} files={files} onMade={loadFiles} />
 
       <section className="card details">
         <Detail label="Site" value={job.site_address} />

@@ -34,6 +34,56 @@ const DANGER = /do not operate|don'?t operate|not to operate|tag(ged)?[- ]?out|l
 
 const pairs = (o: Record<string, string>) => Object.entries(o).map(([k, v]) => `${k}: ${v || '—'}`)
 
+/** One row of the crane master list (the overview's Equipment Master List). */
+export type MasterRow = {
+  id: string; description: string; structure: string; location: string
+  manufacturer: string; serial: string; capacity: string; model: string; repairs: number; type: string; date: string
+}
+export const MASTER_HEAD = ['D#', 'Description', 'Structure', 'Location', 'Manufacturer (Crane / Hoist)', 'Serial # (Crane / Hoist)', 'Capacity (Crane / Hoist)', 'Model # (Crane / Hoist)', 'Repairs']
+const MASTER_WIDTHS = [48, 70, 90, 70, 100, 105, 82, 115, 40]
+
+/** The crane master list, sorted by D-number. */
+export function masterList(units: Unit[]): MasterRow[] {
+  return [...units].sort((a, b) => (a.id < b.id ? -1 : 1)).map((u) => ({
+    id: u.id, description: u.description, structure: u.structure, location: u.location,
+    manufacturer: pairs(u.specs.Manufacturer).join('\n'), serial: pairs(u.specs['Serial Number']).join('\n'),
+    capacity: pairs(u.specs.Capacity).join('\n'), model: pairs(u.specs.Model).join('\n'),
+    repairs: u.items.filter((i) => i.kind === 'repair').length, type: u.type, date: u.date,
+  }))
+}
+
+/** A one-table PDF of the crane master list, on the DESHAZO letterhead. */
+export function buildMasterList(opts: { rows: MasterRow[]; jobNumber: string; customer: string; banner: string }): jsPDF {
+  const { rows, jobNumber, customer, banner } = opts
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter', compress: true })
+  doc.setFont('helvetica', 'bold').setFontSize(18).setTextColor(...NAVY)
+  doc.text('Crane Master List', PAGE_W / 2, TOP, { align: 'center' })
+  doc.setFont('helvetica', 'normal').setFontSize(10.5).setTextColor(70)
+  const when = rows[0]?.date ? `  •  Inspected ${rows[0].date}` : ''
+  doc.text(`${customer}  •  Job #${jobNumber}  •  ${rows.length} unit${rows.length === 1 ? '' : 's'}${when}`, PAGE_W / 2, TOP + 16, { align: 'center' })
+  autoTable(doc, {
+    startY: TOP + 28,
+    margin: { left: M, right: M, top: TOP, bottom: 50 },
+    head: [MASTER_HEAD],
+    body: rows.map((r) => [r.id, r.description, r.structure, r.location, r.manufacturer, r.serial, r.capacity, r.model, String(r.repairs)]),
+    theme: 'grid',
+    tableWidth: W,
+    styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 3, lineColor: 160, lineWidth: 0.4, textColor: 20, overflow: 'linebreak' },
+    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold' },
+    columnStyles: Object.fromEntries(MASTER_WIDTHS.map((w, i) => [i, { cellWidth: w }])),
+    rowPageBreak: 'avoid',
+    didParseCell: (d) => { if (d.section === 'body' && rows[d.row.index].repairs) d.cell.styles.fillColor = [255, 244, 229] },
+  })
+  const pages = doc.getNumberOfPages()
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p)
+    doc.addImage(banner, 'PNG', M, 18, W, (W * 280) / 2448, 'banner', 'FAST')
+    doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(140)
+    doc.text(`Crane Master List – Job #${jobNumber} – ${customer} – Page ${p} of ${pages}`, PAGE_W / 2, PAGE_H - 22, { align: 'center' })
+  }
+  return doc
+}
+
 export function safetyAlerts(units: Unit[]): { unit: Unit; text: string }[] {
   const out: { unit: Unit; text: string }[] = []
   for (const u of units) {
@@ -211,9 +261,9 @@ export function buildReport(opts: {
 
   // ---------- 3. master list ----------
   heading('Equipment Master List (sorted by D-number)', 15, true)
-  table(['D#', 'Description', 'Structure', 'Location', 'Manufacturer (Crane / Hoist)', 'Serial # (Crane / Hoist)', 'Capacity (Crane / Hoist)', 'Model # (Crane / Hoist)', 'Repairs'],
-    units.map((u) => [u.id, u.description, u.structure, u.location, pairs(u.specs.Manufacturer).join('\n'), pairs(u.specs['Serial Number']).join('\n'), pairs(u.specs.Capacity).join('\n'), pairs(u.specs.Model).join('\n'), u.items.filter((i) => i.kind === 'repair').length]),
-    { widths: [48, 70, 90, 70, 100, 105, 82, 115, 40], fill: (r) => (units[r].items.some((i) => i.kind === 'repair') ? [255, 244, 229] : r % 2 ? [245, 245, 245] : null) })
+  const ml = masterList(units)
+  table(MASTER_HEAD, ml.map((r) => [r.id, r.description, r.structure, r.location, r.manufacturer, r.serial, r.capacity, r.model, r.repairs]),
+    { widths: MASTER_WIDTHS, fill: (r) => (ml[r].repairs ? [255, 244, 229] : r % 2 ? [245, 245, 245] : null) })
   para([['Shaded rows have repair items. Spec values are as entered by the inspector; blank fields are shown as "—".']], 8, { italic: true })
 
   // ---------- 4. repair items with photos ----------
