@@ -42,7 +42,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<JobsList />} />
           <Route path="/jobs/new" element={<JobForm />} />
-          <Route path="/jobs/:id" element={<JobDetail userEmail={session.user.email ?? ''} />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/jobs/:id/edit" element={<JobForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

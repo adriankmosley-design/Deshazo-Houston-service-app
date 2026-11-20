@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import { BUCKET, guessCategory, matchJob, safeFileName, supabase } from '../lib/supabase'
+import { DUPLICATE, matchJob, supabase, uploadToJob } from '../lib/supabase'
 
-type Result = { name: string; job?: string; ok: boolean; message?: string }
+type Result = { name: string; job?: string; ok: boolean; skipped?: boolean; message?: string }
 
 /**
  * Upload many files at once. Each file goes to the job whose number appears
@@ -17,10 +17,7 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
     if (!files.length) return
     setBusy(true)
     setResults([])
-    const [{ data: jobs, error }, { data: user }] = await Promise.all([
-      supabase.from('jobs').select('id, job_number').limit(5000),
-      supabase.auth.getUser(),
-    ])
+    const { data: jobs, error } = await supabase.from('jobs').select('id, job_number').limit(5000)
     if (error || !jobs) {
       setResults([{ name: 'Could not load jobs', ok: false, message: error?.message }])
       setBusy(false)
@@ -31,22 +28,9 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
       const job = matchJob(file.name, jobs)
       if (!job) {
         out.push({ name: file.name, ok: false, message: 'No job number in the name matches a job' })
-        setResults([...out])
-        continue
-      }
-      const path = `${job.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`
-      const up = await supabase.storage.from(BUCKET).upload(path, file, {
-        contentType: file.type || undefined,
-      })
-      if (up.error) {
-        out.push({ name: file.name, job: job.job_number, ok: false, message: up.error.message })
       } else {
-        const row = await supabase.from('job_files').insert({
-          job_id: job.id, category: guessCategory(file), file_name: file.name, storage_path: path,
-          size_bytes: file.size, mime_type: file.type || null, uploaded_by: user.user?.email ?? null,
-        })
-        if (row.error) await supabase.storage.from(BUCKET).remove([path])
-        out.push({ name: file.name, job: job.job_number, ok: !row.error, message: row.error?.message })
+        const err = await uploadToJob(job.id, file)
+        out.push({ name: file.name, job: job.job_number, ok: !err, skipped: err === DUPLICATE, message: err ?? undefined })
       }
       setResults([...out])
     }
@@ -55,7 +39,8 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
   }
 
   const added = results.filter((r) => r.ok).length
-  const failed = results.filter((r) => !r.ok)
+  const skipped = results.filter((r) => r.skipped).length
+  const failed = results.filter((r) => !r.ok && !r.skipped)
 
   return (
     <div
@@ -85,7 +70,7 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
       {results.length > 0 && !busy && (
         <div className="stack tight bulk-results" role="status">
           <div className="row between">
-            <strong>{added} file{added === 1 ? '' : 's'} added to jobs</strong>
+            <strong>{added} file{added === 1 ? '' : 's'} added to jobs{skipped ? `, ${skipped} already there (skipped)` : ''}</strong>
             <button className="btn small ghost" onClick={() => setResults([])}>Close</button>
           </div>
           {failed.length > 0 && (

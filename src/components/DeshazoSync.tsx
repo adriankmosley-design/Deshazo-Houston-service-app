@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BUCKET, supabase } from '../lib/supabase'
+import { DUPLICATE, supabase, uploadToJob } from '../lib/supabase'
 import { bookmarkletHref } from '../lib/deshazoBookmarklet'
 
 const DESHAZO = 'https://deshazo.belovedrobot.com'
@@ -50,15 +50,10 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
     async function saveReport(num: string, buf: ArrayBuffer) {
       const { data: job } = await supabase.from('jobs').select('id').eq('job_number', num).maybeSingle()
       if (!job) return bump('errors')
-      const { data: user } = await supabase.auth.getUser()
-      const path = `${job.id}/${crypto.randomUUID()}-Service-Report-${num}.pdf`
-      const up = await supabase.storage.from(BUCKET).upload(path, new Blob([buf], { type: 'application/pdf' }), { contentType: 'application/pdf' })
-      if (up.error) return bump('errors')
-      const { error } = await supabase.from('job_files').insert({
-        job_id: job.id, category: 'Service reports', file_name: `Service Report ${num}.pdf`, storage_path: path,
-        size_bytes: buf.byteLength, mime_type: 'application/pdf', uploaded_by: user.user?.email ?? null,
-      })
-      if (error) { await supabase.storage.from(BUCKET).remove([path]); return bump('errors') }
+      const file = new File([buf], `Service Report ${num}.pdf`, { type: 'application/pdf' })
+      const err = await uploadToJob(job.id, file, 'Service reports')
+      if (err === DUPLICATE) return
+      if (err) return bump('errors')
       bump('pdfs')
     }
 

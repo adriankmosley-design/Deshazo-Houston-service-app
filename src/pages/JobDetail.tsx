@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  BUCKET, CATEGORIES, formatBytes, formatDate, guessCategory, safeFileName, supabase,
+  BUCKET, CATEGORIES, DUPLICATE, formatBytes, formatDate, guessCategory, supabase, uploadToJob,
   type Category, type Job, type JobFile,
 } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
@@ -9,7 +9,7 @@ import OutlookEmails from '../components/OutlookEmails'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
 
-export default function JobDetail({ userEmail }: { userEmail: string }) {
+export default function JobDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const [job, setJob] = useState<Job | null>(null)
@@ -52,22 +52,15 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
     setUploads(arr.map((f) => ({ name: f.name, status: 'uploading' })))
     await Promise.all(arr.map(async (file, i) => {
       const category = forced ?? (target === 'Auto' ? guessCategory(file) : target)
-      const path = `${id}/${crypto.randomUUID()}-${safeFileName(file.name)}`
       const mark = (u: Partial<Upload>) =>
         setUploads((prev) => prev.map((p, j) => (j === i ? { ...p, ...u } : p)))
-      const up = await supabase.storage.from(BUCKET).upload(path, file, {
-        contentType: file.type || undefined,
-      })
-      if (up.error) return mark({ status: 'error', message: up.error.message })
-      const row = await supabase.from('job_files').insert({
-        job_id: id, category, file_name: file.name, storage_path: path,
-        size_bytes: file.size, mime_type: file.type || null, uploaded_by: userEmail,
-      })
-      if (row.error) {
-        await supabase.storage.from(BUCKET).remove([path])
-        return mark({ status: 'error', message: row.error.message })
+      // Same name twice in one drop: keep the first.
+      if (arr.findIndex((f) => f.name.toLowerCase() === file.name.toLowerCase()) !== i) {
+        return mark({ status: 'done', message: DUPLICATE })
       }
-      mark({ status: 'done' })
+      const err = await uploadToJob(id, file, category)
+      if (err === DUPLICATE) return mark({ status: 'done', message: DUPLICATE })
+      mark(err ? { status: 'error', message: err } : { status: 'done' })
     }))
     // Touch the job so it rises to the top of the list.
     await supabase.from('jobs').update({ updated_at: new Date().toISOString() }).eq('id', id)
@@ -170,7 +163,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
               {uploads.map((u, i) => (
                 <li key={i} className={u.status}>
                   {u.status === 'uploading' ? '⏳' : u.status === 'done' ? '✓' : '⚠'} {u.name}
-                  {u.message && <span className="error"> {u.message}</span>}
+                  {u.message && <span className={u.status === 'error' ? 'error' : 'muted'}> {u.message}</span>}
                 </li>
               ))}
             </ul>
