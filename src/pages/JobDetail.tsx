@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  BUCKET, CATEGORIES, formatBytes, formatDate, guessCategory, safeFileName, supabase,
+  BUCKET, CATEGORIES, folderLabel, formatBytes, formatDate, guessCategory, safeFileName, supabase,
   type Category, type Job, type JobFile,
 } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
@@ -155,7 +155,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
               Put in
               <select value={target} onChange={(e) => setTarget(e.target.value as typeof target)}>
                 <option value="Auto">Auto (guess from name)</option>
-                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                {CATEGORIES.map((c) => <option key={c} value={c}>{folderLabel(c)}</option>)}
               </select>
             </label>
             <button className="btn primary" onClick={() => pickRef.current?.click()}>Choose files</button>
@@ -191,7 +191,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
         return (
           <section key={cat} className="folder">
             <h2 className="folder-title">
-              {cat} <span className="count">{inCat.length}</span>
+              {folderLabel(cat)} <span className="count">{inCat.length}</span>
             </h2>
             {inCat.length === 0 ? (
               <p className="muted small empty-folder">Nothing here yet.</p>
@@ -248,7 +248,7 @@ function FileActions({ f, onOpen, onMove, onRemove }: {
       <button className="btn small ghost" onClick={() => onOpen(f, true)}>Download</button>
       <select className="small" aria-label="Move to folder" value={f.category}
         onChange={(e) => onMove(f, e.target.value as Category)}>
-        {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+        {CATEGORIES.map((c) => <option key={c} value={c}>{folderLabel(c)}</option>)}
       </select>
       <button className="btn small ghost danger-text" onClick={() => onRemove(f)}>Delete</button>
     </span>

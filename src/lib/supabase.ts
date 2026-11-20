@@ -27,6 +27,9 @@ export const CATEGORIES = [
 ] as const
 export type Category = (typeof CATEGORIES)[number]
 
+/** Name shown on screen for a folder. "Other" reads as "Files" (email attachments and anything else). */
+export const folderLabel = (c: Category): string => (c === 'Other' ? 'Files' : c)
+
 export type Job = {
   id: string
   job_number: string
