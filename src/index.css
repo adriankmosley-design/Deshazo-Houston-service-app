@@ -116,10 +116,10 @@ label.inline select { width: auto; }
 .chip.on { background: var(--text); color: var(--surface); border-color: var(--text); }
 
 .badge { font-size: 0.75rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
-.badge.open { color: var(--open); background: var(--open-bg); }
-.badge.quoted { color: var(--quoted); background: var(--quoted-bg); }
+.badge.open { color: var(--prog); background: var(--prog-bg); }
+.badge.quoted { color: var(--prog); background: var(--prog-bg); }
 .badge.in-progress { color: var(--prog); background: var(--prog-bg); }
-.badge.closed { color: var(--closed); background: var(--closed-bg); }
+.badge.closed { color: var(--prog); background: var(--prog-bg); }
 
 .job-list, .file-list, .uploads { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .job-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
