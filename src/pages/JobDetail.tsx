@@ -19,6 +19,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
   const [target, setTarget] = useState<'Auto' | Category>('Auto')
   const [uploads, setUploads] = useState<Upload[]>([])
   const [dragging, setDragging] = useState(false)
+  const [overview, setOverview] = useState('')
   const pickRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
 
@@ -73,6 +74,20 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
     await supabase.from('jobs').update({ updated_at: new Date().toISOString() }).eq('id', id)
     await loadFiles()
     setTimeout(() => setUploads((u) => u.filter((x) => x.status === 'error')), 2500)
+  }
+
+  const unitReports = files.filter((f) => /^D\d{6}\b.*\.pdf$/i.test(f.file_name))
+  const hasOverview = files.some((f) => /^Inspection Report Overview/i.test(f.file_name))
+
+  async function makeInspectionReport() {
+    if (!job) return
+    setOverview('Building the inspection report overview… this can take a minute.')
+    const { makeOverview } = await import('../lib/inspection/browser')
+    const r = await makeOverview(job, true)
+    setOverview(r.ok
+      ? `Done: ${r.units} units, ${r.repairs} repair items.${r.problems.length ? ' Check: ' + r.problems.join('; ') : ''}`
+      : r.message)
+    await loadFiles()
   }
 
   async function open(f: JobFile, download = false) {
@@ -193,6 +208,14 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
             <h2 className="folder-title">
               {folderLabel(cat)} <span className="count">{inCat.length}</span>
             </h2>
+            {cat === 'Inspection reports' && unitReports.length > 0 && (
+              <div className="row gap wrap small">
+                <button className="btn small" disabled={overview.startsWith('Building')} onClick={makeInspectionReport}>
+                  {hasOverview ? 'Remake inspection report overview' : 'Make inspection report overview'}
+                </button>
+                {overview && <span className="muted">{overview}</span>}
+              </div>
+            )}
             {inCat.length === 0 ? (
               <p className="muted small empty-folder">Nothing here yet.</p>
             ) : cat === 'Photos' ? (
