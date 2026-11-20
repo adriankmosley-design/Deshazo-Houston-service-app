@@ -179,3 +179,11 @@ label.inline select { width: auto; }
 
 .sync-due { border-color: var(--accent); background: var(--accent-soft); }
 .bookmarklet { cursor: grab; border-style: dashed; }
+
+/* Crane master list pinned on a job */
+.master-list { border-color: var(--accent); }
+.table-wrap { overflow-x: auto; }
+table.master { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+table.master th, table.master td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: pre-line; }
+table.master th { font-weight: 600; color: var(--muted); }
+table.master tr.has-repairs td { background: var(--accent-soft); }

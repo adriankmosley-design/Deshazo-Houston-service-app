@@ -7,7 +7,9 @@ import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import bannerUrl from '../../assets/inspection-banner.png'
 import { BUCKET, supabase, uploadToJob, type JobFile } from '../supabase'
-import { makeReport, type Env, type Source } from './assemble'
+import { makeReport, readSources, type Env, type Source } from './assemble'
+import { buildMasterList, masterList, type MasterRow } from './report'
+import { masterPdfName, storeMaster } from './master'
 import type { RawImage } from './pdfText'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
@@ -52,6 +54,54 @@ async function bannerDataUrl(): Promise<string> {
   })
 }
 
+type JobInfo = { id: string; job_number: string; customer: string; site_address: string | null }
+
+/** Replace any file in the job with this exact name, then save the new one. */
+async function replaceFile(job: JobInfo, all: JobFile[], name: string, data: ArrayBuffer) {
+  const old = all.filter((f) => f.file_name.toLowerCase() === name.toLowerCase())
+  if (old.length) {
+    await supabase.storage.from(BUCKET).remove(old.map((f) => f.storage_path))
+    await supabase.from('job_files').delete().in('id', old.map((f) => f.id))
+  }
+  return uploadToJob(job.id, new File([data], name, { type: 'application/pdf' }), 'Inspection reports')
+}
+
+/** Pin the crane master list on the job and save its printable PDF. */
+async function saveMaster(job: JobInfo, all: JobFile[], rows: MasterRow[], banner: string) {
+  const err = await storeMaster(job.id, { jobNumber: job.job_number, made: new Date().toISOString(), rows })
+  if (err) return err
+  const pdf = buildMasterList({ rows, jobNumber: job.job_number, customer: job.customer, banner }).output('arraybuffer')
+  return replaceFile(job, all, masterPdfName(job.job_number), pdf)
+}
+
+async function jobFiles(jobId: string) {
+  const { data, error } = await supabase.from('job_files').select('*').eq('job_id', jobId)
+  return { all: (data ?? []) as JobFile[], error }
+}
+
+async function download(files: JobFile[]): Promise<Source[] | string> {
+  const out: Source[] = []
+  for (const f of files) {
+    const { data, error: dl } = await supabase.storage.from(BUCKET).download(f.storage_path)
+    if (dl || !data) return `Could not open ${f.file_name}: ${dl?.message ?? 'missing'}`
+    out.push({ name: f.file_name, data: new Uint8Array(await data.arrayBuffer()) })
+  }
+  return out
+}
+
+/** Make just the crane master list from the unit reports already in the job (text only, quick). */
+export async function makeMasterList(job: JobInfo): Promise<string | null> {
+  const { all, error } = await jobFiles(job.id)
+  if (error) return error.message
+  const units = all.filter((f) => isUnitFile(f.file_name))
+  if (!units.length) return 'No unit inspection reports in this job.'
+  const src = await download(units)
+  if (typeof src === 'string') return src
+  const { units: parsed } = await readSources(env, src, false)
+  if (!parsed.length) return 'Could not read the unit inspection reports.'
+  return saveMaster(job, all, masterList(parsed), await bannerDataUrl())
+}
+
 export type OverviewResult = { ok: true; units: number; repairs: number; problems: string[] } | { ok: false; message: string }
 
 /**
@@ -89,6 +139,7 @@ export async function makeOverview(job: { id: string; job_number: string; custom
   const file = new File([made.pdf], overviewName(job.job_number), { type: 'application/pdf' })
   const err = await uploadToJob(job.id, file, 'Inspection reports')
   if (err) return { ok: false, message: err }
+  await saveMaster(job, (await jobFiles(job.id)).all, made.master, await bannerDataUrl())
   await supabase.from('jobs').update({ updated_at: new Date().toISOString() }).eq('id', job.id)
   return { ok: true, units: made.units, repairs: made.repairs, problems: made.problems }
 }
