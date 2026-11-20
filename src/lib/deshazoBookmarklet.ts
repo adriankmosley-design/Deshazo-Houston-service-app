@@ -19,11 +19,12 @@ const source = `(async () => {
   const short = (a) => a.length > 3 ? a.slice(0, 3).join('; ') + ' (+' + (a.length - 3) + ' more)' : a.join('; ');
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const API = 'https://deshazo-api.belovedrobot.com/api/work-orders/';
-  let n = 0, added = 0, pdfs = 0;
+  let n = 0, added = 0, pdfs = 0, insp = 0;
+  const isInsp = (w, d) => /inspect/i.test(String((d && d.jobType && (d.jobType.name || d.jobType)) || w.jobType || ''));
   for (const w of list) {
     n++;
     const no = w.salesOrderNo, j = byNo.get(no);
-    if (j && j.status === 'Closed' && j.hasReport) continue;
+    if (j && j.status === 'Closed' && j.hasReport && (j.hasOverview || !isInsp(w))) continue;
     note('Sending work order ' + no + ' (' + n + ' of ' + list.length + ')…');
     try {
       const d = await (await fetch(API + w.id + '?id=' + w.id, { credentials: 'include' })).json();
@@ -44,11 +45,23 @@ const source = `(async () => {
         const r = await fetch(API + 'service-report/' + w.id, { credentials: 'include' });
         if (r.ok && (r.headers.get('content-type') || '').includes('pdf')) { const buf = await r.arrayBuffer(); opener.postMessage({ kind: 'jf-pdf', num: no, buf }, O, [buf]); pdfs++; }
       }
+      if (isInsp(w, d) && map[st] === 'Closed' && !(j && j.hasOverview)) {
+        let units = 0;
+        for (const wc of d.workOrderCranes || []) {
+          const code = wc.crane && wc.crane.ContactCode;
+          if (!code || !/^D\\d{6}$/.test(code) || !(wc.craneInspections || []).length) continue;
+          note('Work order ' + no + ': inspection report for ' + code + '…');
+          await wait(400);
+          const r = await fetch(API + 'service-report/' + w.id + '?workOrderId=' + w.id + '&craneId=' + wc.craneId + '&browserTimeOffset=-6', { credentials: 'include' });
+          if (r.ok && (r.headers.get('content-type') || '').includes('pdf')) { const buf = await r.arrayBuffer(); opener.postMessage({ kind: 'jf-unit', num: no, code, buf }, O, [buf]); units++; }
+        }
+        if (units) { opener.postMessage({ kind: 'jf-inspection', num: no }, O); insp++; }
+      }
     } catch (e) { console.warn('Job Files sync', no, e); }
     await wait(700);
   }
   opener.postMessage({ kind: 'jf-done' }, O);
-  note('Done: ' + added + ' new jobs and ' + pdfs + ' service reports sent to Job Files. You can close this tab.');
+  note('Done: ' + added + ' new jobs and ' + pdfs + ' service reports sent to Job Files, ' + insp + ' inspection jobs sent for an overview. Keep the Job Files tab open until it says Done.');
 })()`
 
 export function bookmarkletHref(origin: string) {
