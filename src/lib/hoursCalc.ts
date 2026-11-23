@@ -4,12 +4,15 @@ export type TimeEntry = { tech: string; date: string; start: string; end: string
 export type HoursRow = TimeEntry & { total: number; regular: number; overtime: number }
 
 export const REG_START = 7
-export const REG_END = 17
+export const REG_END = 15
 
 const minutesOfDay = (t: string) => Number(t.slice(11, 13)) * 60 + Number(t.slice(14, 16))
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-/** Split one entry into regular (7 AM to 5 PM) and overtime hours. Overnight shifts roll past midnight. */
+/**
+ * Split one entry into regular (Monday to Friday, 7 AM to 3 PM) and overtime hours.
+ * Saturday and Sunday are all overtime. Overnight shifts roll past midnight.
+ */
 export function splitHours(e: TimeEntry): HoursRow {
   const s = minutesOfDay(e.start)
   let end = minutesOfDay(e.end)
@@ -18,7 +21,10 @@ export function splitHours(e: TimeEntry): HoursRow {
   if (end < s) end += 1440
   const total = (end - s) / 60
   let regular = 0
+  const first = Date.parse(e.start.slice(0, 10) + 'T00:00:00Z')
   for (let d = 0; d * 1440 < end; d++) {
+    const dow = new Date(first + d * 86_400_000).getUTCDay()
+    if (dow === 0 || dow === 6) continue
     const a = Math.max(s, d * 1440 + REG_START * 60)
     const b = Math.min(end, d * 1440 + REG_END * 60)
     if (b > a) regular += (b - a) / 60

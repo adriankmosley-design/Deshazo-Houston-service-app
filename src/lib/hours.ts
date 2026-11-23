@@ -1,16 +1,30 @@
 /**
  * Total hours report for a job, from the time entries techs log in Beloved Robot.
- * Times are the techs' local clock times. Regular time is 7 AM to 5 PM; the rest is overtime.
+ * Times are the techs' local clock times. Regular time is Monday to Friday 7 AM to 3 PM; the rest, and all weekend hours, is overtime.
  */
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { BUCKET, supabase, uploadToJob, type JobFile } from './supabase'
-import { hoursRows, type HoursRow, type TimeEntry } from './hoursCalc'
+import { hoursRows, hoursSummary, type HoursRow, type TimeEntry } from './hoursCalc'
 
 export type { TimeEntry, HoursRow }
 
 export const hoursPdfName = (jobNumber: string) => `Total Hours ${jobNumber}.pdf`
-const hoursPath = (jobId: string) => `${jobId}/total-hours.json`
+export const hoursPath = (jobId: string) => `${jobId}/total-hours.json`
+
+/** Bump when the regular/overtime rule changes, so every saved report is remade once. v2: Mon to Fri 7 AM to 3 PM. */
+const RULE = 'v2'
+const keyOf = (rows: HoursRow[]) => RULE + JSON.stringify(rows.map(({ tech, date, start, end }) => [tech, date, start, end]))
+
+/** The time entries saved beside a job's hours report (any rule version). */
+export function readEntries(text: string): TimeEntry[] {
+  try {
+    const raw = JSON.parse(text.replace(/^v\d+/, '')) as [string, string, string, string][]
+    return raw.map(([tech, date, start, end]) => ({ tech, date, start, end }))
+  } catch {
+    return []
+  }
+}
 
 const clock = (t: string) => {
   const h = Number(t.slice(11, 13)), m = t.slice(14, 16)
@@ -24,7 +38,7 @@ export function buildHoursPdf(rows: HoursRow[], job: { job_number: string; custo
   doc.setFont('helvetica', 'bold').setFontSize(16).text(`Total Hours - Job ${job.job_number}`, 40, 50)
   doc.setFont('helvetica', 'normal').setFontSize(10)
     .text(job.customer || '', 40, 68)
-    .text(`From Beloved Robot time entries. Regular time 7:00 AM to 5:00 PM; hours outside that are overtime. Updated ${new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' })} CT.`, 40, 84, { maxWidth: 530 })
+    .text(`From Beloved Robot time entries. Regular time Monday to Friday 7:00 AM to 3:00 PM; hours outside that and all Saturday and Sunday hours are overtime. Updated ${new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' })} CT.`, 40, 84, { maxWidth: 530 })
 
   const sum = (rs: HoursRow[], k: 'total' | 'regular' | 'overtime') => rs.reduce((a, r) => a + r[k], 0)
   autoTable(doc, {
@@ -64,7 +78,7 @@ export function buildHoursPdf(rows: HoursRow[], job: { job_number: string; custo
 export async function saveHoursReport(job: { id: string; job_number: string; customer: string }, entries: TimeEntry[]): Promise<boolean | string> {
   const rows = hoursRows(entries)
   if (!rows.length) return false
-  const key = JSON.stringify(rows.map(({ tech, date, start, end }) => [tech, date, start, end]))
+  const key = keyOf(rows)
   const { data: files } = await supabase.from('job_files').select('*').eq('job_id', job.id).ilike('file_name', hoursPdfName(job.job_number))
   const old = (files ?? []) as JobFile[]
   if (old.length) {
@@ -78,4 +92,33 @@ export async function saveHoursReport(job: { id: string; job_number: string; cus
   await supabase.storage.from(BUCKET).remove([hoursPath(job.id)])
   await supabase.storage.from(BUCKET).upload(hoursPath(job.id), new Blob([key], { type: 'application/json' }), { contentType: 'application/json' })
   return true
+}
+
+/**
+ * Remake hours reports saved under an older regular/overtime rule, from the time entries kept
+ * beside them, and fix the "Total hours:" line in the job notes. Runs at the end of each sync,
+ * so jobs the sync skips (closed, unchanged) are recalculated too. Returns how many were remade.
+ */
+export async function recalcOldHours(): Promise<number> {
+  const { data } = await supabase.from('job_files').select('job_id').ilike('file_name', 'Total Hours%').limit(10000)
+  const ids = [...new Set((data ?? []).map((r) => r.job_id as string))]
+  let n = 0
+  for (const id of ids) {
+    const { data: blob } = await supabase.storage.from(BUCKET).download(hoursPath(id))
+    if (!blob) continue
+    const text = await blob.text()
+    if (text.startsWith(RULE)) continue
+    const entries = readEntries(text)
+    const { data: job } = await supabase.from('jobs').select('id, job_number, customer, notes').eq('id', id).maybeSingle()
+    if (!job || !entries.length) continue
+    const r = await saveHoursReport(job, entries)
+    if (r !== true) continue
+    const total = hoursSummary(entries)
+    if (total) {
+      const kept = (job.notes ?? '').split('\n').filter((l: string) => !/^Total hours: /.test(l))
+      await supabase.from('jobs').update({ notes: [...kept, total].filter(Boolean).join('\n') }).eq('id', id)
+    }
+    n++
+  }
+  return n
 }

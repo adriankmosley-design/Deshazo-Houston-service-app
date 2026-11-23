@@ -134,6 +134,12 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
         else if (d.kind === 'jf-hours' && d.num && Array.isArray(d.entries)) await saveHours(String(d.num), d.entries as TimeEntry[])
         else if (d.kind === 'jf-inspection' && d.num) await saveOverview(String(d.num))
         else if (d.kind === 'jf-done') {
+          // Remake any hours reports still worked out under an older regular-time rule.
+          try {
+            const { recalcOldHours } = await import('../lib/hours')
+            const n = await recalcOldHours()
+            if (n) setCounts((c) => ({ ...c, hours: c.hours + n }))
+          } catch (err) { console.warn('Hours recalc', err) }
           setState('done')
           try { localStorage.setItem(LAST, today()) } catch { /* private window */ }
           setLast(today())
