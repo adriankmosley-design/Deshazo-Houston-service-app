@@ -1,6 +1,9 @@
 /**
  * The "Send to Job Files" bookmark. It runs on the Beloved Robot work orders page
  * (it only reads from it) and hands each work order to the Job Files tab that opened it.
+ *
+ * The bookmark itself is a small loader: it asks the Job Files tab for the current sync
+ * code (`syncSource`) and runs it, so new sync features work without re-dragging the bookmark.
  */
 const source = `(async () => {
   const O = ORIGIN;
@@ -24,7 +27,8 @@ const source = `(async () => {
   for (const w of list) {
     n++;
     const no = w.salesOrderNo, j = byNo.get(no);
-    if (j && j.status === 'Closed' && j.hasReport && (j.hasOverview || !isInsp(w))) continue;
+    const changed = !j || !j.reportAt || String(w.updatedAt || '') > j.reportAt;
+    if (j && j.status === 'Closed' && j.hasReport && !changed && j.hasHours && (j.hasOverview || !isInsp(w))) continue;
     note('Sending work order ' + no + ' (' + n + ' of ' + list.length + ')…');
     try {
       const d = await (await fetch(API + w.id + '?id=' + w.id, { credentials: 'include' })).json();
@@ -38,13 +42,21 @@ const source = `(async () => {
       const po = d.customerPONo || w.customerPONo || '';
       const notes = [((w.jobType || 'Work order') + ': ' + (w.svcCommentText || w.comment || '')).trim(), 'Scheduled ' + fmt(w.startDate) + ' - ' + fmt(w.endDate), 'DeShazo status: ' + st, techs.length ? 'Techs: ' + techs.join(', ') : '', po ? 'PO: ' + po : '', craneTxt.length ? 'Cranes: ' + craneTxt.join('; ') : '', 'Imported from DeShazo work order ' + no].filter(Boolean).join('\\n');
       const row = { job_number: no, customer: w.billToName || '', site_address: site || null, status: map[st] || 'Open', contact_name: cc.contactName || cc.name || [cc.firstName, cc.lastName].filter(Boolean).join(' ') || null, contact_phone: cc.telephoneNo || cc.phone || null, contact_email: cc.emailAddress || cc.email || null, crane_make: short(craneTxt) || null, serial_number: short(cranes.map((c) => c.ContactCode).filter(Boolean)) || null, notes };
-      opener.postMessage({ kind: 'jf-job', row }, O);
+      const entries = [];
+      for (const t of d.workOrderTrips || []) for (const e of t.workOrderEmployees || []) {
+        const p = e.employee || {}; const tech = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Tech';
+        for (const wd of e.employeeWorkDays || []) for (const x of wd.workTimes || []) {
+          if (x.startTime && x.endTime) entries.push({ tech, date: wd.date || String(x.startTime).slice(0, 10), start: String(x.startTime).slice(0, 16), end: String(x.endTime).slice(0, 16) });
+        }
+      }
+      opener.postMessage({ kind: 'jf-job', row, entries }, O);
       if (!j) added++;
-      if (!j || !j.hasReport) {
+      if (!j || !j.hasReport || changed) {
         await wait(400);
         const r = await fetch(API + 'service-report/' + w.id, { credentials: 'include' });
         if (r.ok && (r.headers.get('content-type') || '').includes('pdf')) { const buf = await r.arrayBuffer(); opener.postMessage({ kind: 'jf-pdf', num: no, buf }, O, [buf]); pdfs++; }
       }
+      if (entries.length) opener.postMessage({ kind: 'jf-hours', num: no, entries }, O);
       if (isInsp(w, d) && map[st] === 'Closed' && !(j && j.hasOverview)) {
         let units = 0;
         for (const wc of d.workOrderCranes || []) {
@@ -64,6 +76,22 @@ const source = `(async () => {
   note('Done: ' + added + ' new jobs and ' + pdfs + ' service reports sent to Job Files, ' + insp + ' inspection jobs sent for an overview. Keep the Job Files tab open until it says Done.');
 })()`
 
+/** The sync code the bookmark runs, for the Job Files tab at `origin`. */
+export function syncSource(origin: string) {
+  return source.replace('ORIGIN', JSON.stringify(origin))
+}
+
+const loader = `(() => {
+  const O = ORIGIN;
+  const say = (t) => { let d = document.getElementById('jf-note'); if (!d) { d = document.createElement('div'); d.id = 'jf-note'; d.style.cssText = 'position:fixed;top:16px;right:16px;z-index:99999;background:#1c2430;color:#fff;padding:14px 18px;border-radius:10px;font:15px system-ui;box-shadow:0 4px 20px #0005;max-width:340px'; document.body.appendChild(d); } d.textContent = t; };
+  if (!window.opener) { say('Start from the Sync button in Job Files, then click this bookmark on the tab it opens.'); return; }
+  let got = false;
+  const h = (e) => { if (e.origin === O && e.data && e.data.kind === 'jf-code' && typeof e.data.source === 'string') { got = true; removeEventListener('message', h); new Function(e.data.source)(); } };
+  addEventListener('message', h);
+  opener.postMessage({ kind: 'jf-hello' }, O);
+  setTimeout(() => { if (!got) say('Job Files did not answer. Start again from its Sync button.'); }, 8000);
+})()`
+
 export function bookmarkletHref(origin: string) {
-  return 'javascript:' + encodeURIComponent(source.replace('ORIGIN', JSON.stringify(origin)))
+  return 'javascript:' + encodeURIComponent(loader.replace('ORIGIN', JSON.stringify(origin)))
 }

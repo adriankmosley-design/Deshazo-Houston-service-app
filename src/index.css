@@ -130,6 +130,7 @@ label.inline select { width: auto; }
 .job-main { display: grid; gap: 2px; min-width: 0; }
 .job-number { font-size: 1.05rem; }
 .job-meta { text-align: right; flex-shrink: 0; }
+.job-hours { font-weight: 600; color: var(--text, inherit); }
 
 .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
 .details .label, .notes .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 2px; }
