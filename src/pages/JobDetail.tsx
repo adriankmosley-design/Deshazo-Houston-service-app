@@ -18,6 +18,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
   const [job, setJob] = useState<Job | null>(null)
   const [files, setFiles] = useState<JobFile[]>([])
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
+  const [outlookLinks, setOutlookLinks] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [target, setTarget] = useState<'Auto' | Category>('Auto')
   const [uploads, setUploads] = useState<Upload[]>([])
@@ -40,6 +41,15 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
       urls?.forEach((u) => { if (u.path && u.signedUrl) map[u.path] = u.signedUrl })
       setThumbs(map)
     }
+    // Saved emails: find each one's "Open in Outlook" link so the email name opens it in Outlook.
+    const emails = list.filter((f) => f.category === 'Emails' && /\.html?$/i.test(f.file_name))
+    const links: Record<string, string> = {}
+    await Promise.all(emails.map(async (f) => {
+      const { data } = await supabase.storage.from(BUCKET).download(f.storage_path)
+      const link = data ? outlookLinkFrom(await data.text()) : null
+      if (link) links[f.id] = link
+    }))
+    setOutlookLinks(links)
   }, [id])
 
   useEffect(() => {
@@ -246,7 +256,16 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
                 {inCat.map((f) => (
                   <li key={f.id} className="file-row card">
                     <span className="file-icon">{ext(f.file_name)}</span>
-                    <button className="file-name linklike" onClick={() => open(f)}>{f.file_name}</button>
+                    {outlookLinks[f.id] ? (
+                      <a className="file-name" href={outlookLinks[f.id]} target="_blank" rel="noopener noreferrer"
+                        title="Open this email in Outlook">{f.file_name}</a>
+                    ) : (
+                      <button className="file-name linklike" onClick={() => open(f)}>{f.file_name}</button>
+                    )}
+                    {outlookLinks[f.id] && (
+                      <button className="btn small ghost" onClick={() => open(f)}
+                        title="Open the copy saved in Job Files">Saved copy</button>
+                    )}
                     <span className="muted small hide-sm">
                       {formatBytes(f.size_bytes)} · {formatDate(f.created_at)}
                       {f.uploaded_by && ` · ${f.uploaded_by.split('@')[0]}`}
@@ -297,4 +316,14 @@ function Detail({ label, value }: { label: string; value: string | null }) {
 function ext(name: string) {
   const e = name.includes('.') ? name.split('.').pop()! : ''
   return e.slice(0, 4).toUpperCase() || 'FILE'
+}
+
+/** The Outlook web link inside a saved email page, if it has one. */
+function outlookLinkFrom(html: string): string | null {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
+    const href = a.getAttribute('href') || ''
+    if (/^https:\/\/(outlook\.office365\.com|outlook\.office\.com|outlook\.cloud\.microsoft)\//i.test(href)) return href
+  }
+  return null
 }
