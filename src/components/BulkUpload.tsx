@@ -27,7 +27,10 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
       return
     }
     const out: Result[] = []
-    for (const file of files) {
+    const { readableFile } = await import('../lib/htmlText')
+    for (const original of files) {
+      // HTML pages are saved as plain text so anyone can open them on any computer.
+      const file = await readableFile(original)
       let job = matchJob(file.name, jobs)
       if (!job) {
         // No job number in the name: look inside the document (header text first).

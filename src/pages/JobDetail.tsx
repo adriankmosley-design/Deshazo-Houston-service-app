@@ -45,7 +45,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
       setThumbs(map)
     }
     // Saved emails: find each one's "Open in Outlook" link so the email name opens it in Outlook.
-    const emails = list.filter((f) => f.category === 'Emails' && /\.html?$/i.test(f.file_name))
+    const emails = list.filter((f) => f.category === 'Emails' && /\.(html?|txt)$/i.test(f.file_name))
     const links: Record<string, string> = {}
     await Promise.all(emails.map(async (f) => {
       const { data } = await supabase.storage.from(BUCKET).download(f.storage_path)
@@ -64,7 +64,9 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
   }, [id, loadFiles])
 
   async function upload(list: FileList | File[], forced?: Category) {
-    const arr = Array.from(list)
+    const { readableFile } = await import('../lib/htmlText')
+    // HTML pages are saved as plain text so anyone can open them on any computer.
+    const arr = await Promise.all(Array.from(list).map(readableFile))
     if (!arr.length) return
     setUploads(arr.map((f) => ({ name: f.name, status: 'uploading' })))
     await Promise.all(arr.map(async (file, i) => {
@@ -338,6 +340,11 @@ function ext(name: string) {
 
 /** The Outlook web link inside a saved email page, if it has one. */
 function outlookLinkFrom(html: string): string | null {
+  if (!/<a\s/i.test(html)) {
+    // Plain text copy: the link is written out as "Open in Outlook (https://...)".
+    const m = html.match(/https:\/\/(outlook\.office365\.com|outlook\.office\.com|outlook\.cloud\.microsoft)\/[^\s)]+/i)
+    return m ? m[0] : null
+  }
   const doc = new DOMParser().parseFromString(html, 'text/html')
   for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
     const href = a.getAttribute('href') || ''

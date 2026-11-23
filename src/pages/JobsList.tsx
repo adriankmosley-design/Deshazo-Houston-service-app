@@ -10,6 +10,9 @@ import DeshazoSync from '../components/DeshazoSync'
 
 type Row = Job & { job_files: { count: number }[] }
 
+/** Started once per page load: turns any HTML files still stored in jobs into plain .txt files. */
+let htmlCheck: Promise<unknown> | null = null
+
 export default function JobsList() {
   const [jobs, setJobs] = useState<Row[]>([])
   const [query, setQuery] = useState('')
@@ -18,6 +21,10 @@ export default function JobsList() {
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
   const refresh = useCallback(() => setReload((n) => n + 1), [])
+
+  useEffect(() => {
+    htmlCheck ??= import('../lib/htmlText').then((m) => m.convertStoredHtml()).catch((e) => console.warn('HTML to text', e))
+  }, [])
 
   useEffect(() => {
     let cancelled = false

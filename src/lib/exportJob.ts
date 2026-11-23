@@ -89,10 +89,17 @@ export async function exportJob(job: Job, progress: (done: number, total: number
     progress(++done, files.length)
     if (dl || !blob) { skipped.push(f.file_name); continue }
     const folder = clean(folderLabel(f.category))
-    const base = clean(f.file_name)
+    let bytes = new Uint8Array(await blob.arrayBuffer())
+    let fileName = f.file_name
+    if (/\.html?$/i.test(fileName)) {
+      const { htmlToText, txtName } = await import('./htmlText')
+      bytes = enc.encode(htmlToText(new TextDecoder().decode(bytes)))
+      fileName = txtName(fileName)
+    }
+    const base = clean(fileName)
     let name = `${root}/${folder}/${base}`
     for (let i = 2; entries[name]; i++) name = `${root}/${folder}/${base.replace(/(\.[^.]*)?$/, ` (${i})$1`)}`
-    entries[name] = new Uint8Array(await blob.arrayBuffer())
+    entries[name] = bytes
   }
   if (skipped.length) entries[`${root}/Could not export.txt`] = enc.encode(skipped.join('\r\n') + '\r\n')
 
