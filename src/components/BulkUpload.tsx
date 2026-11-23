@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { BUCKET, guessCategory, matchJob, safeFileName, supabase } from '../lib/supabase'
+import { BUCKET, guessCategory, matchJob, matchJobText, safeFileName, supabase } from '../lib/supabase'
 
 type Result = { name: string; job?: string; ok: boolean; message?: string }
 
@@ -28,9 +28,14 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
     }
     const out: Result[] = []
     for (const file of files) {
-      const job = matchJob(file.name, jobs)
+      let job = matchJob(file.name, jobs)
       if (!job) {
-        out.push({ name: file.name, ok: false, message: 'No job number in the name matches a job' })
+        // No job number in the name: look inside the document (header text first).
+        const { fileText } = await import('../lib/docText')
+        job = matchJobText(await fileText(file), jobs)
+      }
+      if (!job) {
+        out.push({ name: file.name, ok: false, message: 'No job number in the name or the document matches a job' })
         setResults([...out])
         continue
       }
@@ -72,8 +77,9 @@ export default function BulkUpload({ onDone }: { onDone: () => void }) {
         <div>
           <strong>Upload files</strong>
           <p className="muted small">
-            Drag files here. Each one goes to the job whose number is in its file name,
-            for example "Service Report 0292239.pdf".
+            Drag files here. Each one goes to the job whose number is in its file name
+            (for example "Service Report 0292239.pdf") or, if not, in the document itself,
+            such as the header of a PDF or Word file.
           </p>
         </div>
         <button className="btn" disabled={busy} onClick={() => inputRef.current?.click()}>
