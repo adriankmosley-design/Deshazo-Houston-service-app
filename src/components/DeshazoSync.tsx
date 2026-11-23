@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BUCKET, supabase, uploadToJob } from '../lib/supabase'
 import { bookmarkletHref, syncSource } from '../lib/deshazoBookmarklet'
-import type { TimeEntry } from '../lib/hours'
+import { hoursSummary, type TimeEntry } from '../lib/hoursCalc'
 
 const DESHAZO = 'https://deshazo.belovedrobot.com'
 const LAST = 'jf-last-deshazo-sync'
@@ -47,7 +47,10 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
       }))
     }
 
-    async function saveJob(row: Row) {
+    async function saveJob(row: Row, entries?: TimeEntry[]) {
+      // Put the job's total hours in its notes so the jobs list can show it.
+      const total = entries?.length ? hoursSummary(entries) : null
+      if (total) row = { ...row, notes: [row.notes, total].filter(Boolean).join('\n') }
       const { data: found } = await supabase.from('jobs').select('id').eq('job_number', row.job_number).maybeSingle()
       if (found) {
         const { error } = await supabase.from('jobs').update({
@@ -121,7 +124,7 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
         } else if (d.kind === 'jf-ready') {
           setState('running')
           ;(e.source as Window | null)?.postMessage({ kind: 'jf-existing', jobs: await existing() }, DESHAZO)
-        } else if (d.kind === 'jf-job' && d.row?.job_number) await saveJob(d.row)
+        } else if (d.kind === 'jf-job' && d.row?.job_number) await saveJob(d.row, Array.isArray(d.entries) ? d.entries as TimeEntry[] : undefined)
         else if (d.kind === 'jf-pdf' && d.num && d.buf instanceof ArrayBuffer) await saveReport(String(d.num), d.buf)
         else if (d.kind === 'jf-unit' && d.num && /^D\d{6}$/.test(String(d.code)) && d.buf instanceof ArrayBuffer) await saveUnit(String(d.num), String(d.code), d.buf)
         else if (d.kind === 'jf-hours' && d.num && Array.isArray(d.entries)) await saveHours(String(d.num), d.entries as TimeEntry[])

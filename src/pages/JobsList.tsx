@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { STATUSES, formatDate, supabase, type Job } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
 import InspectionBadge from '../components/InspectionBadge'
+import { totalHoursFromNotes } from '../lib/hoursCalc'
 import BulkUpload from '../components/BulkUpload'
 import OutlookImport from '../components/OutlookImport'
 import DeshazoSync from '../components/DeshazoSync'
@@ -114,6 +115,7 @@ export default function JobsList() {
                   {j.site_address && <div className="muted small">{j.site_address}</div>}
                 </div>
                 <div className="job-meta muted small">
+                  {totalHoursFromNotes(j.notes) && <div className="job-hours">{totalHoursFromNotes(j.notes)} hrs</div>}
                   <div>{j.job_files[0]?.count ?? 0} files</div>
                   <div>Updated {formatDate(j.updated_at)}</div>
                 </div>

@@ -42,19 +42,19 @@ const source = `(async () => {
       const po = d.customerPONo || w.customerPONo || '';
       const notes = [((w.jobType || 'Work order') + ': ' + (w.svcCommentText || w.comment || '')).trim(), 'Scheduled ' + fmt(w.startDate) + ' - ' + fmt(w.endDate), 'DeShazo status: ' + st, techs.length ? 'Techs: ' + techs.join(', ') : '', po ? 'PO: ' + po : '', craneTxt.length ? 'Cranes: ' + craneTxt.join('; ') : '', 'Imported from DeShazo work order ' + no].filter(Boolean).join('\\n');
       const row = { job_number: no, customer: w.billToName || '', site_address: site || null, status: map[st] || 'Open', contact_name: cc.contactName || cc.name || [cc.firstName, cc.lastName].filter(Boolean).join(' ') || null, contact_phone: cc.telephoneNo || cc.phone || null, contact_email: cc.emailAddress || cc.email || null, crane_make: short(craneTxt) || null, serial_number: short(cranes.map((c) => c.ContactCode).filter(Boolean)) || null, notes };
-      opener.postMessage({ kind: 'jf-job', row }, O);
-      if (!j) added++;
-      if (!j || !j.hasReport || changed) {
-        await wait(400);
-        const r = await fetch(API + 'service-report/' + w.id, { credentials: 'include' });
-        if (r.ok && (r.headers.get('content-type') || '').includes('pdf')) { const buf = await r.arrayBuffer(); opener.postMessage({ kind: 'jf-pdf', num: no, buf }, O, [buf]); pdfs++; }
-      }
       const entries = [];
       for (const t of d.workOrderTrips || []) for (const e of t.workOrderEmployees || []) {
         const p = e.employee || {}; const tech = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Tech';
         for (const wd of e.employeeWorkDays || []) for (const x of wd.workTimes || []) {
           if (x.startTime && x.endTime) entries.push({ tech, date: wd.date || String(x.startTime).slice(0, 10), start: String(x.startTime).slice(0, 16), end: String(x.endTime).slice(0, 16) });
         }
+      }
+      opener.postMessage({ kind: 'jf-job', row, entries }, O);
+      if (!j) added++;
+      if (!j || !j.hasReport || changed) {
+        await wait(400);
+        const r = await fetch(API + 'service-report/' + w.id, { credentials: 'include' });
+        if (r.ok && (r.headers.get('content-type') || '').includes('pdf')) { const buf = await r.arrayBuffer(); opener.postMessage({ kind: 'jf-pdf', num: no, buf }, O, [buf]); pdfs++; }
       }
       if (entries.length) opener.postMessage({ kind: 'jf-hours', num: no, entries }, O);
       if (isInsp(w, d) && map[st] === 'Closed' && !(j && j.hasOverview)) {

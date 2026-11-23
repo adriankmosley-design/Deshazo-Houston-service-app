@@ -5,42 +5,12 @@
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { BUCKET, supabase, uploadToJob, type JobFile } from './supabase'
+import { hoursRows, type HoursRow, type TimeEntry } from './hoursCalc'
 
-/** One time entry as the sync sends it: tech, work day (YYYY-MM-DD), and clock in/out ("YYYY-MM-DDTHH:MM"). */
-export type TimeEntry = { tech: string; date: string; start: string; end: string }
-export type HoursRow = TimeEntry & { total: number; regular: number; overtime: number }
+export type { TimeEntry, HoursRow }
 
-export const REG_START = 7
-export const REG_END = 17
 export const hoursPdfName = (jobNumber: string) => `Total Hours ${jobNumber}.pdf`
 const hoursPath = (jobId: string) => `${jobId}/total-hours.json`
-
-const minutesOfDay = (t: string) => Number(t.slice(11, 13)) * 60 + Number(t.slice(14, 16))
-const round2 = (n: number) => Math.round(n * 100) / 100
-
-/** Split one entry into regular (7 AM to 5 PM) and overtime hours. Overnight shifts roll past midnight. */
-export function splitHours(e: TimeEntry): HoursRow {
-  const s = minutesOfDay(e.start)
-  let end = minutesOfDay(e.end)
-  const days = Math.round((Date.parse(e.end.slice(0, 10)) - Date.parse(e.start.slice(0, 10))) / 86_400_000)
-  end += Math.max(0, days) * 1440
-  if (end < s) end += 1440
-  const total = (end - s) / 60
-  let regular = 0
-  for (let d = 0; d * 1440 < end; d++) {
-    const a = Math.max(s, d * 1440 + REG_START * 60)
-    const b = Math.min(end, d * 1440 + REG_END * 60)
-    if (b > a) regular += (b - a) / 60
-  }
-  return { ...e, total: round2(total), regular: round2(regular), overtime: round2(total - regular) }
-}
-
-export function hoursRows(entries: TimeEntry[]): HoursRow[] {
-  return entries
-    .filter((e) => /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(e.start) && /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(e.end))
-    .map(splitHours)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.tech.localeCompare(b.tech) || a.start.localeCompare(b.start))
-}
 
 const clock = (t: string) => {
   const h = Number(t.slice(11, 13)), m = t.slice(14, 16)
