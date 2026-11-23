@@ -12,6 +12,7 @@
   --open: #1d4ed8;  --open-bg: #e6edfd;
   --quoted: #8a5a00; --quoted-bg: #fdf3dc;
   --prog: #0f7a55;  --prog-bg: #e2f5ed;
+  --insp: #1d5fd1;  --insp-bg: #e3edfd;
   --closed: #4b5563; --closed-bg: #eceef1;
   --radius: 10px;
   color-scheme: light;
@@ -36,6 +37,7 @@
     --open: #93b4fb;  --open-bg: #1d2a46;
     --quoted: #f2c063; --quoted-bg: #3a2e14;
     --prog: #6fd6a8;  --prog-bg: #133628;
+    --insp: #8db6ff;  --insp-bg: #16284a;
     --closed: #b4bcc8; --closed-bg: #2a313b;
     color-scheme: dark;
   }
@@ -120,6 +122,7 @@ label.inline select { width: auto; }
 .badge.quoted { color: var(--prog); background: var(--prog-bg); }
 .badge.in-progress { color: var(--prog); background: var(--prog-bg); }
 .badge.closed { color: var(--prog); background: var(--prog-bg); }
+.badge.inspection { color: var(--insp); background: var(--insp-bg); }
 
 .job-list, .file-list, .uploads { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .job-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }

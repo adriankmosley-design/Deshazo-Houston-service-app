@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { STATUSES, formatDate, supabase, type Job } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
+import InspectionBadge from '../components/InspectionBadge'
 import BulkUpload from '../components/BulkUpload'
 import OutlookImport from '../components/OutlookImport'
 import DeshazoSync from '../components/DeshazoSync'
@@ -107,6 +108,7 @@ export default function JobsList() {
                   <div className="row gap">
                     <strong className="job-number">#{j.job_number}</strong>
                     <StatusBadge status={j.status} />
+                    <InspectionBadge notes={j.notes} />
                   </div>
                   <div>{j.customer}</div>
                   {j.site_address && <div className="muted small">{j.site_address}</div>}

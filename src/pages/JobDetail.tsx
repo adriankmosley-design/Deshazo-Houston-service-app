@@ -5,6 +5,7 @@ import {
   type Category, type Job, type JobFile,
 } from '../lib/supabase'
 import StatusBadge from '../components/StatusBadge'
+import InspectionBadge from '../components/InspectionBadge'
 import OutlookEmails from '../components/OutlookEmails'
 import CraneMasterList from '../components/CraneMasterList'
 
@@ -141,6 +142,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
           <div className="row gap wrap">
             <h1>Job #{job.job_number}</h1>
             <StatusBadge status={job.status} />
+            <InspectionBadge notes={job.notes} />
           </div>
           <div className="lead">{job.customer}</div>
         </div>
