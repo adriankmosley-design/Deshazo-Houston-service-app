@@ -6,7 +6,8 @@
  */
 import { zipSync } from 'fflate'
 import { BUCKET, CATEGORIES, folderLabel, formatBytes, supabase, type Job, type JobFile } from './supabase'
-import { hoursFromNotes, hoursRows, type TimeEntry } from './hoursCalc'
+import { hoursFromNotes, hoursRows } from './hoursCalc'
+import { hoursPath, readEntries } from './hours'
 
 export const exportName = (jobNumber: string) => `Job ${jobNumber} export.zip`
 
@@ -30,7 +31,7 @@ function details(job: Job, files: JobFile[]): string {
     line('Crane make:', job.crane_make),
     line('Capacity:', job.capacity),
     line('Serial number:', job.serial_number),
-    line('Total hours:', h ? `${h.total} (${h.regular} regular 7 AM to 5 PM, ${h.overtime} overtime)` : null),
+    line('Total hours:', h ? `${h.total} (${h.regular} regular Mon to Fri 7 AM to 3 PM, ${h.overtime} overtime)` : null),
     line('Created:', local(job.created_at)),
     line('Last updated:', local(job.updated_at)),
     line('Exported:', new Date().toLocaleString()),
@@ -50,11 +51,10 @@ function details(job: Job, files: JobFile[]): string {
 }
 
 async function hoursCsv(job: Job): Promise<string | null> {
-  const { data } = await supabase.storage.from(BUCKET).download(`${job.id}/total-hours.json`)
+  const { data } = await supabase.storage.from(BUCKET).download(hoursPath(job.id))
   if (!data) return null
   try {
-    const raw = JSON.parse(await data.text()) as [string, string, string, string][]
-    const rows = hoursRows(raw.map(([tech, date, start, end]): TimeEntry => ({ tech, date, start, end })))
+    const rows = hoursRows(readEntries(await data.text()))
     if (!rows.length) return null
     const t = (s: string) => s.slice(11, 16)
     const lines = [['Tech', 'Date', 'Start', 'End', 'Total hrs', 'Regular hrs', 'Overtime hrs'].join(',')]

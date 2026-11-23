@@ -173,7 +173,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
           <div>
             <div className="label">📌 Total hours</div>
             <div className="hours-total">{hours.total} hrs</div>
-            <div className="muted small">{hours.regular} regular (7 AM to 5 PM) · {hours.overtime} overtime</div>
+            <div className="muted small">{hours.regular} regular (Mon to Fri 7 AM to 3 PM) · {hours.overtime} overtime</div>
           </div>
           {hoursFile && <button className="btn small" onClick={() => open(hoursFile)}>Open hours report</button>}
         </section>
