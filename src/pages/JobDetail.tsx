@@ -10,6 +10,7 @@ import OutlookEmails from '../components/OutlookEmails'
 import CraneMasterList from '../components/CraneMasterList'
 import { hoursFromNotes } from '../lib/hoursCalc'
 import InspectionPackage from '../components/InspectionPackage'
+import ExportJob from '../components/ExportJob'
 import InspectionQuote from '../components/InspectionQuote'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
@@ -161,7 +162,8 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
           </div>
           <div className="lead">{job.customer}</div>
         </div>
-        <div className="row gap">
+        <div className="row gap" style={{ alignItems: 'flex-start' }}>
+          <ExportJob job={job} />
           <Link to={`/jobs/${id}/edit`} className="btn">Edit job</Link>
         </div>
       </div>
