@@ -12,7 +12,7 @@ type Row = Record<string, string | null> & { job_number: string }
 /** Pulls work orders and service reports from Beloved Robot (read-only) into Job Files. */
 export default function DeshazoSync({ onDone }: { onDone: () => void }) {
   const [state, setState] = useState<'idle' | 'waiting' | 'running' | 'done'>('idle')
-  const [counts, setCounts] = useState({ added: 0, updated: 0, pdfs: 0, hours: 0, overviews: 0, errors: 0 })
+  const [counts, setCounts] = useState({ added: 0, updated: 0, pdfs: 0, hours: 0, overviews: 0, quotes: 0, errors: 0 })
   const [help, setHelp] = useState(false)
   const [last, setLast] = useState(() => { try { return localStorage.getItem(LAST) } catch { return null } })
   const linkRef = useRef<HTMLAnchorElement>(null)
@@ -109,10 +109,14 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
     async function saveOverview(num: string) {
       const { data: job } = await supabase.from('jobs').select('id, job_number, customer, site_address').eq('job_number', num).maybeSingle()
       if (!job) return bump('errors')
-      const { makeOverview } = await import('../lib/inspection/browser')
+      const { makeOverview, makeQuote } = await import('../lib/inspection/browser')
       const r = await makeOverview(job)
       if (r.ok) bump('overviews')
       else if (!/already has/.test(r.message)) { console.warn('Inspection overview', num, r.message); bump('errors') }
+      // Completed inspection: price its repair items into the Inspection quotes folder (once).
+      const q = await makeQuote(job)
+      if (q.ok) bump('quotes')
+      else if (!/already has|No repair items/.test(q.message)) { console.warn('Repair quote', num, q.message); bump('errors') }
     }
 
     function onMessage(e: MessageEvent) {
@@ -143,7 +147,7 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
   }, [active, onDone])
 
   function start() {
-    setCounts({ added: 0, updated: 0, pdfs: 0, hours: 0, overviews: 0, errors: 0 })
+    setCounts({ added: 0, updated: 0, pdfs: 0, hours: 0, overviews: 0, quotes: 0, errors: 0 })
     setState('waiting')
     window.open(`${DESHAZO}/work-orders/all`, '_blank')
   }
@@ -157,8 +161,8 @@ export default function DeshazoSync({ onDone }: { onDone: () => void }) {
           <strong>{due ? "Sync today's jobs from Beloved Robot" : 'Beloved Robot sync'}</strong>
           <p className="muted small">
             {state === 'waiting' && 'On the Beloved Robot tab that just opened, click your "Send to Job Files" bookmark.'}
-            {state === 'running' && `Syncing… ${counts.added} new, ${counts.updated} updated, ${counts.pdfs} service reports, ${counts.hours} hours reports, ${counts.overviews} inspection overviews`}
-            {state === 'done' && `Done: ${counts.added} new jobs, ${counts.updated} updated, ${counts.pdfs} service reports, ${counts.hours} hours reports, ${counts.overviews} inspection overviews added${counts.errors ? `, ${counts.errors} problems` : ''}.`}
+            {state === 'running' && `Syncing… ${counts.added} new, ${counts.updated} updated, ${counts.pdfs} service reports, ${counts.hours} hours reports, ${counts.overviews} inspection overviews, ${counts.quotes} repair quotes`}
+            {state === 'done' && `Done: ${counts.added} new jobs, ${counts.updated} updated, ${counts.pdfs} service reports, ${counts.hours} hours reports, ${counts.overviews} inspection overviews, ${counts.quotes} repair quotes added${counts.errors ? `, ${counts.errors} problems` : ''}.`}
             {state === 'idle' && (last ? `Last synced ${last === today() ? 'today' : last}.` : 'Pulls the newest work orders and their service reports. Read-only on Beloved Robot.')}
           </p>
         </div>

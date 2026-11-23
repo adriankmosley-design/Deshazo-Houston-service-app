@@ -6,6 +6,8 @@
 import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import bannerUrl from '../../assets/inspection-banner.png'
+import quoteBannerUrl from '../../assets/quote-logo-banner.png'
+import quoteSmallUrl from '../../assets/quote-logo-small.png'
 import { BUCKET, supabase, uploadToJob, type JobFile } from '../supabase'
 import { makeReport, readSources, type Env, type Source } from './assemble'
 import { buildMasterList, masterList, type MasterRow } from './report'
@@ -44,8 +46,10 @@ const env: Env = {
   ops: pdfjs.OPS,
 }
 
-async function bannerDataUrl(): Promise<string> {
-  const blob = await (await fetch(bannerUrl)).blob()
+const bannerDataUrl = () => dataUrl(bannerUrl)
+
+async function dataUrl(url: string): Promise<string> {
+  const blob = await (await fetch(url)).blob()
   return new Promise((res, rej) => {
     const r = new FileReader()
     r.onload = () => res(String(r.result))
@@ -142,4 +146,37 @@ export async function makeOverview(job: { id: string; job_number: string; custom
   await saveMaster(job, (await jobFiles(job.id)).all, made.master, await bannerDataUrl())
   await supabase.from('jobs').update({ updated_at: new Date().toISOString() }).eq('id', job.id)
   return { ok: true, units: made.units, repairs: made.repairs, problems: made.problems }
+}
+
+export type QuoteResult = { ok: true; lines: number; total: number } | { ok: false; message: string }
+
+/**
+ * Build (or rebuild) the job's repair quote from the unit reports already in the job
+ * and save it as "Repair Quote {job}.pdf" in the Inspection quotes folder.
+ * `replace` swaps out an existing quote; otherwise an existing one is left alone.
+ */
+export async function makeQuote(job: JobInfo, replace = false): Promise<QuoteResult> {
+  const { buildQuote, quoteName, QUOTE_FOLDER } = await import('./quote')
+  const { all, error } = await jobFiles(job.id)
+  if (error) return { ok: false, message: error.message }
+  const units = all.filter((f) => isUnitFile(f.file_name))
+  if (!units.length) return { ok: false, message: 'No unit inspection reports (D###### PDFs) in this job yet.' }
+  const name = quoteName(job.job_number)
+  const existing = all.filter((f) => f.file_name.toLowerCase() === name.toLowerCase())
+  if (existing.length && !replace) return { ok: false, message: 'This job already has a repair quote.' }
+  const src = await download(units)
+  if (typeof src === 'string') return { ok: false, message: src }
+  const { units: parsed } = await readSources(env, src, false)
+  if (!parsed.length) return { ok: false, message: 'Could not read the unit inspection reports.' }
+  if (!parsed.some((u) => u.items.some((i) => i.kind === 'repair'))) return { ok: false, message: 'No repair items on this inspection, so no quote is needed.' }
+  const [logoBanner, logoSmall] = await Promise.all([dataUrl(quoteBannerUrl), dataUrl(quoteSmallUrl)])
+  const { doc, totals } = buildQuote({ units: parsed, jobNumber: job.job_number, customer: job.customer, address: job.site_address, logoBanner, logoSmall })
+  if (existing.length) {
+    await supabase.storage.from(BUCKET).remove(existing.map((f) => f.storage_path))
+    await supabase.from('job_files').delete().in('id', existing.map((f) => f.id))
+  }
+  const err = await uploadToJob(job.id, new File([doc.output('arraybuffer')], name, { type: 'application/pdf' }), QUOTE_FOLDER)
+  if (err) return { ok: false, message: err }
+  await supabase.from('jobs').update({ updated_at: new Date().toISOString() }).eq('id', job.id)
+  return { ok: true, lines: totals.lines, total: totals.grand }
 }

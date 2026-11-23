@@ -89,3 +89,9 @@ alter table public.job_files drop constraint if exists job_files_category_check;
 alter table public.job_files add constraint job_files_category_check
   check (category in ('Service reports', 'Inspection reports', 'Quotes',
                       'Parts pricing', 'Photos', 'Letters', 'Emails', 'Other'));
+
+-- Inspection quotes folder (automatic repair quotes for completed inspections). Safe to run again.
+alter table public.job_files drop constraint if exists job_files_category_check;
+alter table public.job_files add constraint job_files_category_check
+  check (category in ('Service reports', 'Inspection reports', 'Inspection quotes', 'Quotes',
+                      'Parts pricing', 'Photos', 'Letters', 'Emails', 'Other'));
