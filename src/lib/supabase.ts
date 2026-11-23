@@ -125,6 +125,8 @@ export function matchJobText<T extends { job_number: string }>(text: string, job
 
 /** Upload one file into a job's folder and record it. Returns an error message, or null when it worked. */
 export async function uploadToJob(jobId: string, file: File, category?: Category): Promise<string | null> {
+  // HTML pages are saved as plain text so anyone can open them on any computer.
+  if (/\.html?$/i.test(file.name) || file.type === 'text/html') file = await (await import('./htmlText')).readableFile(file)
   const path = `${jobId}/${crypto.randomUUID()}-${safeFileName(file.name)}`
   const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined })
   if (up.error) return up.error.message
