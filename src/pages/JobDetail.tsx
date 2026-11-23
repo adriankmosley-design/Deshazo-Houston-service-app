@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge'
 import InspectionBadge from '../components/InspectionBadge'
 import OutlookEmails from '../components/OutlookEmails'
 import CraneMasterList from '../components/CraneMasterList'
+import { hoursFromNotes } from '../lib/hoursCalc'
 import InspectionPackage from '../components/InspectionPackage'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
@@ -91,6 +92,8 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
 
   const unitReports = files.filter((f) => /^D\d{6}\b.*\.pdf$/i.test(f.file_name))
   const hasOverview = files.some((f) => /^Inspection Report Overview/i.test(f.file_name))
+  const hours = hoursFromNotes(job?.notes)
+  const hoursFile = files.find((f) => /^Total Hours/i.test(f.file_name))
 
   async function makeInspectionReport() {
     if (!job) return
@@ -161,6 +164,17 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
           <Link to={`/jobs/${id}/edit`} className="btn">Edit job</Link>
         </div>
       </div>
+
+      {hours && (
+        <section className="card hours-pin row between wrap gap">
+          <div>
+            <div className="label">📌 Total hours</div>
+            <div className="hours-total">{hours.total} hrs</div>
+            <div className="muted small">{hours.regular} regular (7 AM to 5 PM) · {hours.overtime} overtime</div>
+          </div>
+          {hoursFile && <button className="btn small" onClick={() => open(hoursFile)}>Open hours report</button>}
+        </section>
+      )}
 
       <CraneMasterList job={job} files={files} onMade={loadFiles} />
 

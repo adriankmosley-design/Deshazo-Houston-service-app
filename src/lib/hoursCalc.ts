@@ -49,3 +49,9 @@ export function totalHoursFromNotes(notes: string | null | undefined): string | 
   const m = (notes ?? '').match(/^Total hours: ([\d.]+)/m)
   return m ? m[1] : null
 }
+
+/** Total, regular and overtime hours from a job's notes, if the sync has added them. */
+export function hoursFromNotes(notes: string | null | undefined): { total: string; regular: string; overtime: string } | null {
+  const m = (notes ?? '').match(/^Total hours: ([\d.]+) \(([\d.]+) regular, ([\d.]+) overtime\)/m)
+  return m ? { total: m[1], regular: m[2], overtime: m[3] } : null
+}

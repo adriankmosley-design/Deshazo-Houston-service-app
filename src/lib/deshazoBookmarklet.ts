@@ -14,6 +14,23 @@ const source = `(async () => {
   let list = null;
   if (tr) { const fk = Object.keys(tr).find((k) => k.startsWith('__reactFiber')); let f = tr[fk]; for (let i = 0; i < 40 && f && !list; i++, f = f.return) list = scan(f.memoizedProps, 0) || scan(f.memoizedState, 0); }
   if (!list) { note('Open the Work Orders list first, then click the bookmark again.'); return; }
+  // Read a second page too, so each sync covers the newest PAGES x 25 work orders.
+  const PAGES = 2;
+  const readList = () => { const r = document.querySelector('tbody tr'); if (!r) return null; const k = Object.keys(r).find((x) => x.startsWith('__reactFiber')); let g = r[k], out = null; for (let i = 0; i < 40 && g && !out; i++, g = g.return) out = scan(g.memoizedProps, 0) || scan(g.memoizedState, 0); return out; };
+  list = list.slice();
+  for (let pg = 1; pg < PAGES; pg++) {
+    const first = (readList() || [])[0];
+    const btns = [...document.querySelectorAll('[aria-label="Pagination"] a, [aria-label="Pagination"] button')];
+    const next = btns[btns.length - 1];
+    if (!next || next.disabled || next.getAttribute('aria-disabled') === 'true') break;
+    note('Reading work orders page ' + (pg + 1) + '…');
+    next.click();
+    let more = null;
+    for (let t = 0; t < 60 && !more; t++) { await new Promise((r) => setTimeout(r, 500)); const l = readList(); if (l && l.length && first && l[0].salesOrderNo !== first.salesOrderNo) more = l; }
+    if (!more) break;
+    const seen = new Set(list.map((w) => w.salesOrderNo));
+    list.push(...more.filter((w) => !seen.has(w.salesOrderNo)));
+  }
   const have = await new Promise((res) => { const h = (e) => { if (e.origin === O && e.data && e.data.kind === 'jf-existing') { removeEventListener('message', h); res(e.data.jobs); } }; addEventListener('message', h); opener.postMessage({ kind: 'jf-ready' }, O); setTimeout(() => res(null), 8000); });
   if (!have) { note('Job Files did not answer. Start again from its Sync button.'); return; }
   const byNo = new Map(have.map((j) => [j.job_number, j]));
