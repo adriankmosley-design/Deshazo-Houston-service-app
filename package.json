@@ -12,6 +12,7 @@
   "dependencies": {
     "@azure/msal-browser": "^5.29.1",
     "@supabase/supabase-js": "^2.119.0",
+    "fflate": "^0.8.2",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.9",
     "pdfjs-dist": "^5.7.284",

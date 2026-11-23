@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge'
 import InspectionBadge from '../components/InspectionBadge'
 import OutlookEmails from '../components/OutlookEmails'
 import CraneMasterList from '../components/CraneMasterList'
+import InspectionPackage from '../components/InspectionPackage'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
 
@@ -221,6 +222,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
                 {overview && <span className="muted">{overview}</span>}
               </div>
             )}
+            {cat === 'Inspection reports' && <InspectionPackage job={job} files={files} onMade={loadFiles} />}
             {inCat.length === 0 ? (
               <p className="muted small empty-folder">Nothing here yet.</p>
             ) : cat === 'Photos' ? (

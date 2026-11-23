@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import JobsList from './pages/JobsList'
 import JobForm from './pages/JobForm'
 import JobDetail from './pages/JobDetail'
+import { packageTools } from './lib/inspection/package'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -20,6 +21,12 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
+
+  // Helpers the daily inspection-package email task calls from this tab.
+  useEffect(() => {
+    if (!session) return
+    ;(window as unknown as { jobFilesPackages: typeof packageTools }).jobFilesPackages = packageTools
+  }, [session])
 
   if (!isConfigured) return <NotConfigured />
   if (loading) return <div className="center muted">Loading…</div>
