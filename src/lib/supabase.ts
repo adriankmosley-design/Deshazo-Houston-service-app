@@ -18,6 +18,7 @@ export type Status = (typeof STATUSES)[number]
 export const CATEGORIES = [
   'Service reports',
   'Inspection reports',
+  'Inspection quotes',
   'Quotes',
   'Parts pricing',
   'Photos',

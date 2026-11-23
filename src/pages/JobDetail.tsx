@@ -10,6 +10,7 @@ import OutlookEmails from '../components/OutlookEmails'
 import CraneMasterList from '../components/CraneMasterList'
 import { hoursFromNotes } from '../lib/hoursCalc'
 import InspectionPackage from '../components/InspectionPackage'
+import InspectionQuote from '../components/InspectionQuote'
 
 type Upload = { name: string; status: 'uploading' | 'done' | 'error'; message?: string }
 
@@ -247,6 +248,7 @@ export default function JobDetail({ userEmail }: { userEmail: string }) {
               </div>
             )}
             {cat === 'Inspection reports' && <InspectionPackage job={job} files={files} onMade={loadFiles} />}
+            {cat === 'Inspection quotes' && <InspectionQuote job={job} files={files} onMade={loadFiles} />}
             {inCat.length === 0 ? (
               <p className="muted small empty-folder">Nothing here yet.</p>
             ) : cat === 'Photos' ? (
